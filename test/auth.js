@@ -162,6 +162,32 @@ describe('/auth', function() {
 
 			});
 		});
+
+		it('"user"がすでに削除されている', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.delete('/user/kikurage', function(err, res, body) {
+					util.assertIsEmpty(body);
+
+					util.post('/auth/kikurage', {
+						password: 'kikurage_password'
+					}, function(err, res, body) {
+						util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
+						done();
+					});
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+			});
+		});
 	});
 
 	describe('GET /auth', function() {
