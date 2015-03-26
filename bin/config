@@ -1,0 +1,41 @@
+#!/bin/bash
+
+#--------------------------------------
+# Global
+
+TIMESTAMP=`date '+%Y%m%d%H%M%S'`
+
+
+#--------------------------------------
+# DB
+
+#directory mongod uses
+DB_ROOT_PATH=../../travel-share-db
+
+#directory mongod saves datas
+DB_DATA_PATH=$DB_ROOT_PATH/db
+
+#directory mongod outputs logs
+DB_LOGS_PATH=$DB_ROOT_PATH/logs
+
+#file path mongod outputs logs
+DB_LOG_FILE_PATH=$DB_LOGS_PATH/$TIMESTAMP.log
+
+#port database listens
+DB_PORT=27017
+
+
+#--------------------------------------
+# Server
+
+#directory API server uses
+SERVER_ROOT_PATH=../
+
+#directory API server outputs logs
+SERVER_LOGS_PATH=$SERVER_ROOT_PATH/logs
+
+#file path API server outputs logs
+SERVER_LOG_FILE_PATH=$SERVER_LOGS_PATH/$TIMESTAMP.log
+
+#port API server listens
+SERVER_PORT=3000

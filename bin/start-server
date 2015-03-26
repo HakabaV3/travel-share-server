@@ -1,0 +1,8 @@
+#!/bin/bash
+
+cd "$(dirname "$0")"
+source ./config
+
+#DEBUG=* PORT=$SERVER_PORT ../node_modules/forever/bin/forever start -o $SERVER_LOG_FILE_PATH -e $SERVER_LOG_FILE_PATH ./www
+
+PORT=$SERVER_PORT ../node_modules/forever/bin/forever start -o $SERVER_LOG_FILE_PATH -e $SERVER_LOG_FILE_PATH ./www

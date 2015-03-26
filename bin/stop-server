@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cd "$(dirname "$0")"
+source ./config
+
+../node_modules/forever/bin/forever stop ./www
