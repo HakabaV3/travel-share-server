@@ -1,0 +1,137 @@
+<html>
+
+<!--
+ちゃちゃっとテストしたいときに便利なやつ(Chrome Only)
+-->
+
+<head>
+	<title></title>
+	<style>
+		html,
+		body {
+			position: relative;
+			padding: 0;
+			margin: 0;
+			height: 100%;
+			font-family: Monaco;
+		}
+		
+		input,
+		textarea,
+		button {
+			font-family: Monaco;
+			margin: 0;
+		}
+		
+		[layout] {
+			display: flex;
+		}
+		
+		[horizontal] {
+			flex-direction: row;
+		}
+		
+		[vertical] {
+			flex-direction: column;
+		}
+		
+		[flex] {
+			flex: 1;
+		}
+		
+		section {
+			padding: 5px;
+			margin: 5px;
+		}
+		
+		#method {
+			font-size: 20px;
+			align-self: center;
+		}
+		
+		#url-wrapper {
+			margin: 10px;
+			border: 1px solid #ccc;
+		}
+		
+		#url-wrapper > * {
+			font-size: 20px;
+			padding: 0;
+			margin: 0;
+			border: none;
+			background: none;
+			outline: none;
+		}
+		
+		#entryPoint {
+			color: #aaa;
+		}
+		
+		article {
+			border: 1px solid #000;
+			margin: 10px;
+		}
+		
+		header {
+			background: #000;
+		}
+		
+		header h2 {
+			color: #fff;
+			font-size: 18px;
+			margin: 5px 0;
+			padding: 0 10px;
+		}
+	}
+	</style>
+</head>
+
+<body layout vertical>
+	<article layout vertical>
+		<header>
+			<h2>Request</h2>
+		</header>
+		<form id="form" layout horizontal flex>
+			<div layout vertical flex>
+				<section flex layout horizontal>
+					<span>トークン</span>
+					<input id="token" flex type="text">
+				</section>
+				<div layout horizontal>
+					<section layout horizontal>
+						<select id="method" flex>
+							<option value="GET">GET</option>
+							<option value="POST">POST</option>
+							<option value="PATCH">PATCH</option>
+							<option value="DELETE">DELETE</option>
+						</select>
+					</section>
+					<section id="url-wrapper" flex layout horizontal>
+						<span id="entryPoint"></span>
+						<input id="url" flex type="text" placeholder="/url">
+					</section>
+				</div>
+				<div layout horizontal>
+					<section flex layout horizontal>
+						<textarea id="body" placeholder="body" rows="10" flex></textarea>
+					</section>
+				</div>
+			</div>
+			<section layout vertical>
+				<button flex id="submit" type="submit">submit</button>
+			</section>
+		</form>
+	</article>
+	<article layout vertical flex>
+		<header>
+			<h2>Response</h2>
+		</header>
+		<section flex layout horizontal>
+			<textarea id="response" rows="10" flex></textarea>
+		</section>
+	</article>
+
+	<script src="./script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cd "$(dirname "$0")"
+source ./config
+
+if [ ! -d $DB_DATA_PATH ]; then mkdir -p $DB_DATA_PATH; fi
+if [ ! -d $DB_LOGS_PATH ]; then mkdir -p $DB_LOGS_PATH; fi
+
+mongod --fork --logpath $DB_LOG_FILE_PATH --dbpath $DB_DATA_PATH --port $DB_PORT
