@@ -1,31 +1,46 @@
 var APIError = require('../model/apierror.js'),
 	mocha = require('mocha'),
 	util = require('./util.js'),
-	seed = require('../seed/auth.js');
+	User = require('../model/user.js'),
+	Auth = require('../model/auth.js');
+
+beforeEach(function(done) {
+	Auth.remove({}).exec()
+		.then(function() {
+			return User.remove({}).exec()
+		})
+		.then(function() {
+			return User.create({
+				userId: 'kikurage',
+				name: 'kikurage_name',
+				password: 'kikurage_password'
+			}, {
+				userId: 'stogu',
+				name: 'stogu_name',
+				password: 'stogu_password'
+			})
+		})
+		.then(function() {
+			done()
+		})
+		.end(done);
+});
 
 //@TODO 削除されたユーザーでログイン出来ないか確認する。
 describe('/auth', function() {
 
-	var token;
-
-	it('setup', function(done) {
-		seed(done);
-	});
-
 	describe('POST /auth/:userId', function() {
 		it('通常', function(done) {
-			util.post('/auth/auth_test', {
-				password: 'auth_test_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				util.assertIsOK(body);
-				util.assertIsAuth(body.result, 'auth_test');
-				token = body.result.token;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
 				done();
 			});
 		});
 
 		it('"password"が違う', function(done) {
-			util.post('/auth/auth_test', {
+			util.post('/auth/kikurage', {
 				password: 'invalid'
 			}, function(err, res, body) {
 				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
@@ -34,31 +49,22 @@ describe('/auth', function() {
 		});
 
 		it('"password"がない', function(done) {
-			util.post('/auth/auth_test', {}, function(err, res, body) {
+			util.post('/auth/kikurage', {}, function(err, res, body) {
 				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
 				done();
 			});
 		});
 
-		it('"userId"が違う', function(done) {
+		it('"user"が存在しない', function(done) {
 			util.post('/auth/unknown', {
-				password: 'auth_test_password'
+				password: 'kikurage_password'
 			}, function(err, res, body) {
 				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
 				done();
 			});
 		});
 
-		it('"userId"がない', function(done) {
-			util.post('/auth', {
-				password: 'auth_test_password'
-			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.notFound());
-				done();
-			});
-		});
-
-		it('"userId"も"password"も違う', function(done) {
+		it('"user"が存在しないし、"password"も違う', function(done) {
 			util.post('/auth/unknown', {
 				password: 'invalid'
 			}, function(err, res, body) {
@@ -68,145 +74,132 @@ describe('/auth', function() {
 		});
 
 		it('tokenつきだけども、"password"が違う', function(done) {
-			util.post('/auth/auth_test', {
-				password: 'invalid'
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
-				done();
-			}, {
-				headers: {
-					'X-Token': token
-				}
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.post('/auth/kikurage', {
+					password: 'invalid'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
+					done();
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+
 			});
 		});
 
 		it('tokenつきだけども、"password"がない', function(done) {
-			util.post('/auth/auth_test', {}, function(err, res, body) {
-				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
-				done();
-			}, {
-				headers: {
-					'X-Token': token
-				}
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.post('/auth/kikurage', {}, function(err, res, body) {
+					util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
+					done();
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+
 			});
 		});
 
-		it('tokenつきだけども、"userId"が違う', function(done) {
-			util.post('/auth/unknown', {
-				password: 'auth_test_password'
+		it('tokenつきだけども、"user"が存在しない', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
-				done();
-			}, {
-				headers: {
-					'X-Token': token
-				}
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.post('/auth/unknown', {
+					password: 'kikurage_password'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
+					done();
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+
 			});
 		});
 
-		it('tokenつきだけども、"userId"がない', function(done) {
-			util.post('/auth', {
-				password: 'auth_test_password'
-			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.notFound());
-				done();
-			}, {
-				headers: {
-					'X-Token': token
-				}
-			});
-		});
+		it('tokenつきだけども、"user"が存在しないし、"password"も違う', function(done) {
+			var kikurage_token;
 
-		it('tokenつきだけども、"userId"も"password"も違う', function(done) {
-			util.post('/auth/unknown', {
-				password: 'invalid'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
-				done();
-			}, {
-				headers: {
-					'X-Token': token
-				}
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.post('/auth/unknown', {
+					password: 'invalid'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
+					done();
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+
 			});
 		});
 	});
 
 	describe('GET /auth', function() {
 		it('通常', function(done) {
-			util.get('/auth', function(err, res, body) {
-				util.assertIsOK(body);
-				util.assertIsAuth(body.result, 'auth_test');
-				done();
-			}, {
-				headers: {
-					'X-Token': token
-				}
-			});
-		})
+			var kikurage_token;
 
-		it('"X-Token"が存在しない', function(done) {
-			util.get('/auth', function(err, res, body) {
-				util.assertIsNG(body, APIError.notFound(['auth']));
-				done();
-			});
-		});
-
-		it('"X-Token"が空', function(done) {
-			util.get('/auth', function(err, res, body) {
-				util.assertIsNG(body, APIError.notFound(['auth']));
-				done();
-			});
-		}, {
-			headers: {
-				'X-Token': ''
-			}
-		});
-
-		it('"X-Token"が間違っている', function(done) {
-			util.get('/auth', function(err, res, body) {
-				util.assertIsNG(body, APIError.notFound(['auth']));
-				done();
-			});
-		}, {
-			headers: {
-				'X-Token': 'invalid'
-			}
-		});
-	});
-
-	describe('DELETE /auth', function() {
-		it('通常', function(done) {
-			util.delete('/auth', function(err, res, body) {
-				util.assertIsOK(body);
-				util.assert.deepEqual(body.result, {});
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
 				util.get('/auth', function(err, res, body) {
-					util.assertIsNG(body, APIError.notFound(['auth']));
+					util.assertIsAuth(body, 'kikurage', 'kikurage_name');
 					done();
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
-			}, {
-				headers: {
-					'X-Token': token
-				}
+
 			});
 		});
 
 		it('"X-Token"が存在しない', function(done) {
-			util.delete('/auth', function(err, res, body) {
-				util.assertIsOK(body);
-				util.assert.deepEqual(body.result, {});
+			var kikurage_token;
+
+			util.get('/auth', function(err, res, body) {
+				util.assertIsNG(body, APIError.notFound(['auth']));
 				done();
 			});
 		});
 
 		it('"X-Token"が空', function(done) {
-			util.delete('/auth', function(err, res, body) {
-				util.assertIsOK(body);
-				util.assert.deepEqual(body.result, {});
+			var kikurage_token;
+
+			util.get('/auth', function(err, res, body) {
+				util.assertIsNG(body, APIError.notFound(['auth']));
 				done();
 			}, {
 				headers: {
@@ -215,15 +208,170 @@ describe('/auth', function() {
 			});
 		});
 
-		it('"token"がすでに無効化されている', function(done) {
-			util.delete('/auth', function(err, res, body) {
-				util.assertIsOK(body);
-				util.assert.deepEqual(body.result, {});
+		it('"X-Token"が間違っている', function(done) {
+			var kikurage_token;
+
+			util.get('/auth', function(err, res, body) {
+				util.assertIsNG(body, APIError.notFound(['auth']));
 				done();
 			}, {
 				headers: {
-					'X-Token': token
+					'X-Token': 'invalid'
 				}
+			});
+		});
+	});
+
+	describe('DELETE /auth', function() {
+		it('通常', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.delete('/auth', function(err, res, body) {
+					util.assertIsEmpty(body);
+
+					util.get('/auth', function(err, res, body) {
+						util.assertIsNG(body, APIError.notFound(['auth']));
+						done();
+					}, {
+						headers: {
+							'X-Token': kikurage_token
+						}
+					});
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+			});
+		});
+
+		it('"X-Token"が存在しない', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.delete('/auth', function(err, res, body) {
+					util.assertIsEmpty(body);
+
+					util.get('/auth', function(err, res, body) {
+						util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+						done();
+					}, {
+						headers: {
+							'X-Token': kikurage_token
+						}
+					});
+				});
+			});
+		});
+
+		it('"X-Token"が空', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.delete('/auth', function(err, res, body) {
+					util.assertIsEmpty(body);
+
+					util.get('/auth', function(err, res, body) {
+						util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+						done();
+					}, {
+						headers: {
+							'X-Token': kikurage_token
+						}
+					});
+				}, {
+					headers: {
+						'X-Token': ''
+					}
+				});
+			});
+		});
+
+		it('"X-Token"が間違っている', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.delete('/auth', function(err, res, body) {
+					util.assertIsEmpty(body);
+
+					util.get('/auth', function(err, res, body) {
+						util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+						done();
+					}, {
+						headers: {
+							'X-Token': kikurage_token
+						}
+					});
+				}, {
+					headers: {
+						'X-Token': 'invalid'
+					}
+				});
+			});
+		});
+
+		it('"token"がすでに無効化されている', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.delete('/auth', function(err, res, body) {
+					util.assertIsEmpty(body);
+
+					util.get('/auth', function(err, res, body) {
+						util.assertIsNG(body, APIError.notFound(['auth']));
+
+						util.delete('/auth', function(err, res, body) {
+							util.assertIsEmpty(body);
+
+							util.get('/auth', function(err, res, body) {
+								util.assertIsNG(body, APIError.notFound(['auth']));
+								done();
+							}, {
+								headers: {
+									'X-Token': kikurage_token
+								}
+							});
+						}, {
+							headers: {
+								'X-Token': kikurage_token
+							}
+						});
+					}, {
+						headers: {
+							'X-Token': kikurage_token
+						}
+					});
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
 			});
 		});
 	});

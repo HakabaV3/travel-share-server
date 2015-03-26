@@ -1,14 +1,25 @@
 var log = require('../util/log.js'),
 	express = require('express'),
 	APIError = require('../model/apierror.js'),
+	User = {
+		model: require('../model/user.js')
+	},
 	Auth = {
 		model: require('../model/auth.js'),
 		router: express.Router()
 	},
-	User = {
-		model: require('../model/user.js')
-	},
 	crypto = require('crypto');
+
+Auth.router.render = function(req, res, next) {
+	Auth.model.toObject(req.auth, function(err, auth) {
+		if (err) {
+			log(err);
+			return res.ng(APIError.unknown());
+		}
+
+		return res.ok(auth);
+	});
+};
 
 Auth.router.find = function(req, res, next) {
 	var token = req.get('X-Token');
@@ -22,7 +33,7 @@ Auth.router.find = function(req, res, next) {
 	}, function(err, auth) {
 		if (err) {
 			log(err);
-			return res.ng(500, APIError.unknown());
+			return res.ng(APIError.unknown());
 		}
 
 		req.auth = auth || null;
@@ -30,84 +41,68 @@ Auth.router.find = function(req, res, next) {
 	});
 };
 
-Auth.router.findMust = [Auth.router.find, function(req, res, next) {
-	if (!req.auth) return res.ng(403, APIError.permissionDenied());
+Auth.router.findMust = [
+	Auth.router.find,
+	function(req, res, next) {
+		if (!req.auth) return res.ng(APIError.mustAuthorized());
 
-	next();
-}];
+		next();
+	}
+];
 
 Auth.router.get('/',
 	Auth.router.find,
 	function(req, res, next) {
-		if (!req.auth) {
-			return res.ng(404, APIError.notFound(['auth']));
-		}
+		if (!req.auth) return res.ng(APIError.notFound(['auth']));
 
-		return res.ok(Auth.model.toObject(req.auth));
-	});
+		next();
+	},
+	Auth.router.render);
 
-/**
- * @TODO
- *	すでにログインしている場合に過去のトークンを無効化する
- *	(マルチデバイスログインを前提とするならこれは不要？)
- */
 Auth.router.post('/:userId',
 	function(req, res, next) {
-		/**
-		 * User.router.findMustを展開したもの。
-		 * UserがAuthに依存しており、循環参照を避けるため。
-		 */
-		var userId = req.params.userId;
-		if (!userId) {
-			return res.ng(400, APIError.invalidParameter(['userId']));
+		var userId = req.params.userId,
+			password = req.body.password;
+
+		if (!password) {
+			return res.ng(APIError.invalidParameter(['userId', 'password']));
 		}
 
 		User.model.findOne({
 			userId: userId,
+			password: password,
 			deleted: false
 		}, function(err, user) {
 			if (err) {
 				log(err);
-				return res.ng(500, APIError.unknown());
+				return res.ng(APIError.unknown());
 			}
 
 			/**
 			 *	@NOTE
 			 *	'error.detail' object always contains each reason because of security.
 			 */
-			if (!user) return res.ng(400, APIError.invalidParameter(['userId', 'password']));
+			if (!user) return res.ng(APIError.invalidParameter(['userId', 'password']));
 
-			req.user = user;
-			next();
+			var salt = 'kahun shouga tsurai',
+				token = crypto.createHash('sha512').update(userId + salt + password).digest('hex');
+
+			new Auth.model({
+					userId: userId,
+					token: token
+				})
+				.save(function(err, createdAuth) {
+					if (err) {
+						log(err);
+						return res.ng(APIError.unknown());
+					}
+
+					req.auth = createdAuth;
+					next();
+				});
 		});
 	},
-	function(req, res, next) {
-		var password = req.body.password;
-
-		if (!req.user || !password || req.user.password !== password) {
-			/**
-			 *	@NOTE
-			 *	'error.detail' object always contains each reason because of security.
-			 */
-			return res.ng(400, APIError.invalidParameter(['userId', 'password']));
-		}
-
-		var salt = 'kahun shouga tsurai',
-			hash = crypto.createHash('sha512').update(req.user.userId + salt + password).digest('hex');
-
-		new Auth.model({
-				user: req.user,
-				token: hash
-			})
-			.save(function(err, createdAuth) {
-				if (err) {
-					log(err);
-					return res.ng(500, APIError.unknown());
-				}
-
-				return res.ok(Auth.model.toObject(createdAuth));
-			});
-	});
+	Auth.router.render);
 
 Auth.router.delete('/', function(req, res, next) {
 	var token = req.get('X-Token');
@@ -118,7 +113,7 @@ Auth.router.delete('/', function(req, res, next) {
 	}, function(err) {
 		if (err) {
 			log(err);
-			return res.ng(500, APIError.unknown());
+			return res.ng(APIError.unknown());
 		}
 
 		return res.ok();

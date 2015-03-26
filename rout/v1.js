@@ -8,13 +8,8 @@ express.response.ok = function(result) {
 	});
 };
 
-express.response.ng = function(code, result) {
-	if (typeof code === 'object') {
-		result = code;
-		code = 404;
-	}
-
-	return this.status(code).json({
+express.response.ng = function(result) {
+	return this.status(result.httpCode || 404).json({
 		status: 'NG',
 		result: result
 	});

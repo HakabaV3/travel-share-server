@@ -12,6 +12,6 @@ module.exports = new mongoose.Schema({
 		type: Date,
 		default: Date.now
 	},
-	user: [User.schema],
+	userId: String,
 	token: String
 });

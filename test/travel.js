@@ -1,122 +1,300 @@
 var APIError = require('../model/apierror.js'),
 	mocha = require('mocha'),
 	util = require('./util.js'),
-	seed = require('../seed/travel.js');
+	User = require('../model/user.js'),
+	Auth = require('../model/auth.js'),
+	Travel = require('../model/travel.js');
+
+var travel1_id,
+	travel2_id;
+
+beforeEach(function(done) {
+	Auth.remove({}).exec()
+		.then(function() {
+			return User.remove({}).exec()
+		})
+		.then(function() {
+			return Travel.remove({}).exec()
+		})
+		.then(function() {
+			return User.create({
+				userId: 'kikurage',
+				name: 'kikurage_name',
+				password: 'kikurage_password'
+			}, {
+				userId: 'stogu',
+				name: 'stogu_name',
+				password: 'stogu_password'
+			});
+		})
+		.then(function() {
+			return Travel.create({
+				name: 'travel1_name',
+				members: ['kikurage'],
+				places: ['place1']
+			});
+		})
+		.then(function(travel1) {
+			travel1_id = travel1.id;
+		})
+		.then(function() {
+			return Travel.create({
+				name: 'trave2_name',
+				members: ['stogu'],
+				places: ['place2']
+			});
+		})
+		.then(function(travel2) {
+			travel2_id = travel2.id;
+			done()
+		})
+		.end(done);
+});
 
 describe('/travel', function() {
 
-	var result;
-
-	it('setup', function(done) {
-		seed(function(err, result_) {
-			result = result_;
-			done(err, result);
-		});
-	});
-
 	describe('GET /travel/:travelId', function() {
 		it('通常', function(done) {
-			var token;
+			var kikurage_token;
 
-			util.post('/auth/user1', {
-				password: 'user1_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				token = body.result.token;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
-				util.get('/travel/' + result[2]._id, function(err, res, body) {
-					util.assertIsOK(body);
-					util.assertIsTravel(body.result, 'get1_name');
+				util.get('/travel/' + travel1_id, function(err, res, body) {
+					util.assertIsTravel(body, 'travel1_name');
 					done();
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
 			});
 		});
 
 		it('"travel"が存在しない', function(done) {
-			var token;
+			var kikurage_token;
 
-			util.post('/auth/user1', {
-				password: 'user1_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				token = body.result.token;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
 				util.get('/travel/123456789012345678901234', function(err, res, body) {
 					util.assertIsNG(body, APIError.notFound(['travel']));
 					done();
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
 			});
 		});
 
-		it('未認証状態', function(done) {
-			util.get('/travel/' + result[2]._id, function(err, res, body) {
-				util.assertIsOK(body);
-				util.assertIsTravel(body.result, 'get1_name');
-				util.assert.equal(body.result.members.length, 0);
-				util.assert.equal(body.result.places.length, 0);
-				done();
+		it('"X-Token"が存在しない', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.get('/travel/' + travel1_id, function(err, res, body) {
+					util.assertIsTravel(body);
+					util.assert.equal(body.result.members.length, 0);
+					util.assert.equal(body.result.places.length, 0);
+					done();
+				});
 			});
-		})
+		});
+
+		it('"X-Token"が空', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.get('/travel/' + travel1_id, function(err, res, body) {
+					util.assertIsTravel(body);
+					util.assert.equal(body.result.members.length, 0);
+					util.assert.equal(body.result.places.length, 0);
+					done();
+				}, {
+					headers: {
+						'X-Token': ''
+					}
+				});
+			});
+		});
+
+		it('"X-Token"が間違っている', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.get('/travel/' + travel1_id, function(err, res, body) {
+					util.assertIsTravel(body);
+					util.assert.equal(body.result.members.length, 0);
+					util.assert.equal(body.result.places.length, 0);
+					done();
+				}, {
+					headers: {
+						'X-Token': 'invalid'
+					}
+				});
+			});
+		});
+
+		it('メンバーでない旅行の情報を取得しようとした', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.get('/travel/' + travel2_id, function(err, res, body) {
+					util.assertIsTravel(body);
+					util.assert.equal(body.result.members.length, 0);
+					util.assert.equal(body.result.places.length, 0);
+					done();
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+			});
+		});
 	});
 
 	describe('POST /travel', function() {
 		it('通常', function(done) {
-			var token,
-				user;
+			var kikurage_token,
+				travel3_id;
 
-			util.post('/auth/user1', {
-				password: 'user1_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				token = body.result.token;
-				user = body.result.user;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
 				util.post('/travel', {
-					name: 'post1_name'
+					name: 'travel3_name'
 				}, function(err, res, body) {
-					util.assertIsOK(body);
-					util.assertIsTravel(body.result, 'post1_name');
-					util.assert.deepEqual(body.result.members[0], user);
-					util.assert.equal(body.result.members.length, 1);
-					done();
+					util.assertIsTravel(body, 'travel3_name');
+					travel3_id = body.result.id;
+
+					util.get('/travel/' + travel3_id, function(err, res, body) {
+						util.assertIsTravel(body, 'travel3_name');
+						done();
+					}, {
+						headers: {
+							'X-Token': kikurage_token
+						}
+					});
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
 			});
 		});
 
 		it('"name"が指定されていない', function(done) {
-			var token;
+			var kikurage_token,
+				travel3_id;
 
-			util.post('/auth/user1', {
-				password: 'user1_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				token = body.result.token;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
 				util.post('/travel', {}, function(err, res, body) {
 					util.assertIsNG(body, APIError.invalidParameter(['name']));
 					done();
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
 			});
 		});
 
-		it('未認証状態', function(done) {
-			util.post('/travel', {
-				name: 'post1_name'
+		it('"X-Token"が存在しない', function(done) {
+			var kikurage_token,
+				travel3_id;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.permissionDenied());
-				done();
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.post('/travel', {
+					name: 'travel3_name'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.mustAuthorized());
+					done();
+				});
+			});
+		});
+
+		it('"X-Token"が空', function(done) {
+			var kikurage_token,
+				travel3_id;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.post('/travel', {
+					name: 'travel3_name'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.mustAuthorized());
+					done();
+				}, {
+					headers: {
+						'X-Token': ''
+					}
+				});
+			});
+		});
+
+		it('"X-Token"が間違っている', function(done) {
+			var kikurage_token,
+				travel3_id;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.post('/travel', {
+					name: 'travel3_name'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.mustAuthorized());
+					done();
+				}, {
+					headers: {
+						'X-Token': 'invalid'
+					}
+				});
 			});
 		});
 	});
@@ -125,83 +303,136 @@ describe('/travel', function() {
 		var travel;
 
 		it('通常', function(done) {
-			var token;
+			var kikurage_token;
 
-			util.post('/auth/user1', {
-				password: 'user1_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				token = body.result.token;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
-				util.post('/travel', {
-					name: 'patch1_name'
+				util.patch('/travel/' + travel1_id, {
+					name: 'travel1_name_edited'
 				}, function(err, res, body) {
-					travel = body.result;
+					util.assertIsTravel(body, 'travel1_name_edited');
 
-					util.patch('/travel/' + travel.id, {
-						name: 'patch1_name_edited'
-					}, function(err, res, body) {
-						util.assertIsOK(body);
-						util.assertIsTravel(body.result, 'patch1_name_edited');
+					util.get('/travel/' + travel1_id, function(err, res, body) {
+						util.assertIsTravel(body, 'travel1_name_edited');
 						done();
 					}, {
 						headers: {
-							'X-Token': token
+							'X-Token': kikurage_token
 						}
 					});
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
 			});
 		});
 
 		it('"travel"が存在しない', function(done) {
-			var token;
+			var kikurage_token;
 
-			util.post('/auth/user1', {
-				password: 'user1_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				token = body.result.token;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
 				util.patch('/travel/123456789012345678901234', {
-					name: 'unknown_name_edited'
+					name: 'travel1_name_edited'
 				}, function(err, res, body) {
 					util.assertIsNG(body, APIError.notFound(['travel']));
 					done();
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
 			});
 		});
 
-		it('未認証状態', function(done) {
-			util.patch('/travel/' + travel.id, {
-				name: 'travel1_name_edited2'
+		it('"X-Token"が存在しない', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.permissionDenied());
-				done();
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.patch('/travel/' + travel1_id, {
+					name: 'travel1_name_edited'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.mustAuthorized());
+					done();
+				});
+			});
+		});
+
+		it('"X-Token"が空', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.patch('/travel/' + travel1_id, {
+					name: 'travel1_name_edited'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.mustAuthorized());
+					done();
+				}, {
+					headers: {
+						'X-Token': ''
+					}
+				});
+			});
+		});
+
+		it('"X-Token"が間違っている', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.patch('/travel/' + travel1_id, {
+					name: 'travel1_name_edited'
+				}, function(err, res, body) {
+					util.assertIsNG(body, APIError.mustAuthorized());
+					done();
+				}, {
+					headers: {
+						'X-Token': 'invalid'
+					}
+				});
 			});
 		});
 
 		it('認証しているが、編集権のない旅行を編集しようとした', function(done) {
-			var token;
+			var kikurage_token;
 
-			util.post('/auth/user2', {
-				password: 'user2_password'
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
 			}, function(err, res, body) {
-				token = body.result.token;
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
 
-				util.patch('/travel/' + travel.id, {
-					name: 'disallow_action'
+				util.patch('/travel/' + travel2_id, {
+					name: 'travel2_name_edited'
 				}, function(err, res, body) {
 					util.assertIsNG(body, APIError.permissionDenied());
 					done();
 				}, {
 					headers: {
-						'X-Token': token
+						'X-Token': kikurage_token
 					}
 				});
 			});

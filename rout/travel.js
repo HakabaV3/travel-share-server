@@ -15,18 +15,34 @@ var log = require('../util/log.js'),
 	},
 	ObjectId = require('mongoose').Types.ObjectId;
 
+Travel.router.render = function(req, res, next) {
+	Travel.model.toObject(req.travel, function(err, travel) {
+		if (err) {
+			log(err);
+			return res.ng(APIError.unknown());
+		}
+
+		if (!req.isEditable) {
+			travel.members = [];
+			travel.places = [];
+		}
+
+		return res.ok(travel);
+	});
+};
+
 Travel.router.find = function(req, res, next) {
 	var travelId = req.params.travelId,
 		travelIdObj;
 
 	if (!travelId) {
-		return res.ng(400, APIError.invalidParameter(['travelId']));
+		return res.ng(APIError.invalidParameter(['travelId']));
 	}
 
 	try {
 		travelIdObj = new ObjectId(travelId);
 	} catch (err) {
-		return res.ng(404, APIError.notFound(['travelId']));
+		return res.ng(APIError.notFound(['travelId']));
 	}
 
 	Travel.model.findOne({
@@ -35,7 +51,7 @@ Travel.router.find = function(req, res, next) {
 	}, function(err, travel) {
 		if (err) {
 			log(err);
-			return res.ng(500, APIError.unknown());
+			return res.ng(APIError.unknown());
 		}
 
 		req.travel = travel || null;
@@ -46,7 +62,7 @@ Travel.router.find = function(req, res, next) {
 Travel.router.findMust = [
 	Travel.router.find,
 	function(req, res, next) {
-		if (!req.travel) return res.ng(404, APIError.notFound(['travel']));
+		if (!req.travel) return res.ng(APIError.notFound(['travel']));
 
 		next();
 	}
@@ -59,11 +75,11 @@ Travel.router.isEditable = function(req, res, next) {
 	}
 
 	var members = req.travel.members,
-		userId = req.auth.user[0].userId,
+		userId = req.auth.userId,
 		i, max;
 
 	for (i = 0, max = members.length; i < max; i++) {
-		if (members[i].userId === userId) {
+		if (members[i] === userId) {
 			req.isEditable = true;
 			return next();
 		}
@@ -78,11 +94,11 @@ Travel.router.isEditableMust = [
 	function(req, res, next) {
 
 		if (!req.travel) {
-			return res.ng(404, APIError.notFound(['travel']));
+			return res.ng(APIError.notFound(['travel']));
 		}
 
 		if (!req.isEditable) {
-			return res.ng(403, APIError.permissionDenied());
+			return res.ng(APIError.permissionDenied());
 		}
 
 		next();
@@ -93,13 +109,7 @@ Travel.router.get('/:travelId',
 	Auth.router.find,
 	Travel.router.findMust,
 	Travel.router.isEditable,
-	function(req, res, next) {
-		if (req.isEditable) {
-			return res.ok(Travel.model.toObject(req.travel));
-		} else {
-			return res.ok(Travel.model.toPublicObject(req.travel));
-		}
-	});
+	Travel.router.render);
 
 Travel.router.post('/',
 	Auth.router.findMust,
@@ -114,17 +124,19 @@ Travel.router.post('/',
 
 		new Travel.model({
 				name: name,
-				members: [req.auth.user[0]]
+				members: [req.auth.userId]
 			})
 			.save(function(err, createdTravel) {
 				if (err) {
 					log(err);
-					return res.ng(500, APIError.unknown());
+					return res.ng(APIError.unknown());
 				}
 
-				return res.ok(Travel.model.toObject(createdTravel));
+				req.travel = createdTravel;
+				next();
 			});
-	});
+	},
+	Travel.router.render);
 
 Travel.router.patch('/:travelId',
 	Auth.router.findMust,
@@ -141,11 +153,13 @@ Travel.router.patch('/:travelId',
 		Travel.model.findByIdAndUpdate(req.travel._id, updateValue, function(err, updatedTravel) {
 			if (err) {
 				log(err);
-				return res.ng(500, APIError.unknown());
+				return res.ng(APIError.unknown());
 			}
 
-			return res.ok(Travel.model.toObject(updatedTravel));
+			req.travel = updatedTravel;
+			next();
 		});
-	});
+	},
+	Travel.router.render);
 
 module.exports = Travel.router;
