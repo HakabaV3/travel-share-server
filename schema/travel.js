@@ -20,6 +20,6 @@ module.exports = new mongoose.Schema({
 		default: false
 	},
 	name: String,
-	members: [User.schema],
-	places: [Place.schema]
+	members: [String],
+	places: [String]
 });

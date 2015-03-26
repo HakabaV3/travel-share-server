@@ -15,6 +15,22 @@ var log = require('../util/log.js'),
 	},
 	ObjectId = require('mongoose').Types.ObjectId;
 
+Travel.router.render = function(req, res, next) {
+	Travel.model.toObject(req.travel, function(err, travel) {
+		if (err) {
+			log(err);
+			return res.ng(APIError.unknown());
+		}
+
+		if (!req.isEditable) {
+			travel.members = [];
+			travel.places = [];
+		}
+
+		return res.ok(travel);
+	});
+};
+
 Travel.router.find = function(req, res, next) {
 	var travelId = req.params.travelId,
 		travelIdObj;
@@ -59,11 +75,11 @@ Travel.router.isEditable = function(req, res, next) {
 	}
 
 	var members = req.travel.members,
-		userId = req.auth.user[0].userId,
+		userId = req.auth.userId,
 		i, max;
 
 	for (i = 0, max = members.length; i < max; i++) {
-		if (members[i].userId === userId) {
+		if (members[i] === userId) {
 			req.isEditable = true;
 			return next();
 		}
@@ -93,13 +109,7 @@ Travel.router.get('/:travelId',
 	Auth.router.find,
 	Travel.router.findMust,
 	Travel.router.isEditable,
-	function(req, res, next) {
-		if (req.isEditable) {
-			return res.ok(Travel.model.toObject(req.travel));
-		} else {
-			return res.ok(Travel.model.toPublicObject(req.travel));
-		}
-	});
+	Travel.router.render);
 
 Travel.router.post('/',
 	Auth.router.findMust,
@@ -114,7 +124,7 @@ Travel.router.post('/',
 
 		new Travel.model({
 				name: name,
-				members: [req.auth.user[0]]
+				members: [req.auth.userId]
 			})
 			.save(function(err, createdTravel) {
 				if (err) {
@@ -122,9 +132,11 @@ Travel.router.post('/',
 					return res.ng(APIError.unknown());
 				}
 
-				return res.ok(Travel.model.toObject(createdTravel));
+				req.travel = createdTravel;
+				next();
 			});
-	});
+	},
+	Travel.router.render);
 
 Travel.router.patch('/:travelId',
 	Auth.router.findMust,
@@ -144,8 +156,10 @@ Travel.router.patch('/:travelId',
 				return res.ng(APIError.unknown());
 			}
 
-			return res.ok(Travel.model.toObject(updatedTravel));
+			req.travel = updatedTravel;
+			next();
 		});
-	});
+	},
+	Travel.router.render);
 
 module.exports = Travel.router;

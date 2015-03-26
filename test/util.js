@@ -53,18 +53,38 @@ exports.assertIsNG = function(object, err) {
 	if (err) assert.deepEqual(object.result, err);
 };
 
-exports.assertIsUser = function(object, userId, name) {
+exports.assertIsUserObject = function(object, userId, name) {
 	assert.deepEqual(Object.keys(object).sort(), ['id', 'created', 'updated', 'userId', 'name'].sort());
 	if (userId) assert.equal(object.userId, userId);
 	if (name) assert.equal(object.name, name);
 };
 
-exports.assertIsTravel = function(object, name) {
+exports.assertIsTravelObject = function(object, name) {
 	assert.deepEqual(Object.keys(object).sort(), ['id', 'created', 'updated', 'name', 'members', 'places'].sort());
 	if (name) assert.equal(object.name, name);
 };
 
-exports.assertIsAuth = function(object, userId) {
+exports.assertIsAuthObject = function(object, userId, name) {
 	assert.deepEqual(Object.keys(object).sort(), ['id', 'created', 'updated', 'user', 'token'].sort());
-	if (userId) assert.equal(object.user.userId, userId);
+	exports.assertIsUserObject(object.user, userId, name);
+};
+
+exports.assertIsEmpty = function(object) {
+	exports.assertIsOK(object);
+	assert.deepEqual(object.result, {});
+};
+
+exports.assertIsUser = function(object, userId, name) {
+	exports.assertIsOK(object);
+	exports.assertIsUserObject(object.result, userId, name)
+};
+
+exports.assertIsTravel = function(object, name) {
+	exports.assertIsOK(object);
+	exports.assertIsTravelObject(object.result, name)
+};
+
+exports.assertIsAuth = function(object, userId, name) {
+	exports.assertIsOK(object);
+	exports.assertIsAuthObject(object.result, userId, name)
 };

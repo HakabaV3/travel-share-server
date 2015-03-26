@@ -10,6 +10,16 @@ var log = require('../util/log.js'),
 		router: require('./auth.js')
 	};
 
+User.router.render = function(req, res, next) {
+	User.model.toObject(req.user, function(err, user) {
+		if (err) {
+			log(err);
+			return res.ng(APIError.unknown());
+		}
+
+		return res.ok(user);
+	});
+};
 
 User.router.find = function(req, res, next) {
 	var userId = req.params.userId;
@@ -38,7 +48,7 @@ User.router.findMust = [User.router.find, function(req, res, next) {
 }];
 
 User.router.isEditable = function(req, res, next) {
-	req.isEditable = req.user && req.auth && req.auth.user[0].userId === req.user.userId;
+	req.isEditable = req.user && req.auth && req.auth.userId === req.user.userId;
 	next();
 };
 
@@ -59,9 +69,7 @@ User.router.isEditableMust = [
 
 User.router.get('/:userId',
 	User.router.findMust,
-	function(req, res, next) {
-		return res.ok(User.model.toObject(req.user));
-	});
+	User.router.render);
 
 User.router.post('/:userId',
 	User.router.find,
@@ -92,9 +100,12 @@ User.router.post('/:userId',
 					return res.ng(APIError.unknown());
 				}
 
-				return res.ok(User.model.toObject(createdUser));
+				req.user = createdUser;
+
+				next();
 			});
-	});
+	},
+	User.router.render);
 
 User.router.patch('/:userId',
 	Auth.router.findMust,
@@ -114,16 +125,20 @@ User.router.patch('/:userId',
 				return res.ng(APIError.unknown());
 			}
 
-			return res.ok(User.model.toObject(updatedUser));
+			req.user = updatedUser;
+			next();
 		});
-	});
+	},
+	User.router.render);
 
 User.router.delete('/:userId',
 	Auth.router.findMust,
 	User.router.findMust,
 	User.router.isEditableMust,
 	function(req, res, next) {
-		User.model.findByIdAndUpdate(req.auth.user[0]._id, {
+		User.model.findOneAndUpdate({
+			userId: req.auth.userId
+		}, {
 			updated: new Date(),
 			deleted: true
 		}, function(err) {

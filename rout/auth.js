@@ -10,6 +10,17 @@ var log = require('../util/log.js'),
 	},
 	crypto = require('crypto');
 
+Auth.router.render = function(req, res, next) {
+	Auth.model.toObject(req.auth, function(err, auth) {
+		if (err) {
+			log(err);
+			return res.ng(APIError.unknown());
+		}
+
+		return res.ok(auth);
+	});
+};
+
 Auth.router.find = function(req, res, next) {
 	var token = req.get('X-Token');
 	if (!token) {
@@ -42,54 +53,56 @@ Auth.router.findMust = [
 Auth.router.get('/',
 	Auth.router.find,
 	function(req, res, next) {
-		if (!req.auth) {
-			return res.ng(APIError.notFound(['auth']));
+		if (!req.auth) return res.ng(APIError.notFound(['auth']));
+
+		next();
+	},
+	Auth.router.render);
+
+Auth.router.post('/:userId',
+	function(req, res, next) {
+		var userId = req.params.userId,
+			password = req.body.password;
+
+		if (!password) {
+			return res.ng(APIError.invalidParameter(['userId', 'password']));
 		}
 
-		return res.ok(Auth.model.toObject(req.auth));
-	});
+		User.model.findOne({
+			userId: userId,
+			password: password,
+			deleted: false
+		}, function(err, user) {
+			if (err) {
+				log(err);
+				return res.ng(APIError.unknown());
+			}
 
-Auth.router.post('/:userId', function(req, res, next) {
-	var userId = req.params.userId,
-		password = req.body.password;
+			/**
+			 *	@NOTE
+			 *	'error.detail' object always contains each reason because of security.
+			 */
+			if (!user) return res.ng(APIError.invalidParameter(['userId', 'password']));
 
-	if (!password) {
-		return res.ng(APIError.invalidParameter(['userId', 'password']));
-	}
+			var salt = 'kahun shouga tsurai',
+				token = crypto.createHash('sha512').update(userId + salt + password).digest('hex');
 
-	User.model.findOne({
-		userId: userId,
-		password: password,
-		deleted: false
-	}, function(err, user) {
-		if (err) {
-			log(err);
-			return res.ng(APIError.unknown());
-		}
+			new Auth.model({
+					userId: userId,
+					token: token
+				})
+				.save(function(err, createdAuth) {
+					if (err) {
+						log(err);
+						return res.ng(APIError.unknown());
+					}
 
-		/**
-		 *	@NOTE
-		 *	'error.detail' object always contains each reason because of security.
-		 */
-		if (!user) return res.ng(APIError.invalidParameter(['userId', 'password']));
-
-		var salt = 'kahun shouga tsurai',
-			token = crypto.createHash('sha512').update(userId + salt + password).digest('hex');
-
-		new Auth.model({
-				user: user,
-				token: token
-			})
-			.save(function(err, createdAuth) {
-				if (err) {
-					log(err);
-					return res.ng(APIError.unknown());
-				}
-
-				return res.ok(Auth.model.toObject(createdAuth));
-			});
-	});
-});
+					req.auth = createdAuth;
+					next();
+				});
+		});
+	},
+	Auth.router.render);
 
 Auth.router.delete('/', function(req, res, next) {
 	var token = req.get('X-Token');
