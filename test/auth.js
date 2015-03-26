@@ -49,15 +49,6 @@ describe('/auth', function() {
 			});
 		});
 
-		it('"userId"がない', function(done) {
-			util.post('/auth', {
-				password: 'auth_test_password'
-			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.notFound());
-				done();
-			});
-		});
-
 		it('"userId"も"password"も違う', function(done) {
 			util.post('/auth/unknown', {
 				password: 'invalid'
@@ -96,19 +87,6 @@ describe('/auth', function() {
 				password: 'auth_test_password'
 			}, function(err, res, body) {
 				util.assertIsNG(body, APIError.invalidParameter(['userId', 'password']));
-				done();
-			}, {
-				headers: {
-					'X-Token': token
-				}
-			});
-		});
-
-		it('tokenつきだけども、"userId"がない', function(done) {
-			util.post('/auth', {
-				password: 'auth_test_password'
-			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.notFound());
 				done();
 			}, {
 				headers: {

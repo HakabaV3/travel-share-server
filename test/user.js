@@ -113,7 +113,7 @@ describe('/user', function() {
 			util.patch('/user/patch1', {
 				name: 'patch1_name_edited'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.permissionDenied());
+				util.assertIsNG(body, APIError.mustAuthorized());
 				done();
 			});
 		});
@@ -182,6 +182,7 @@ describe('/user', function() {
 
 			//kikurageの作成
 			util.post('/user/kikurage', {
+				name: 'kikurage_name',
 				password: 'kikurage_password'
 			}, function(err, res, body) {
 
@@ -193,7 +194,7 @@ describe('/user', function() {
 
 					//unknownの削除
 					util.delete('/user/unknown', function(err, res, body) {
-						util.assertIsNG(body, APIError.permissionDenied());
+						util.assertIsNG(body, APIError.notFound(['user']));
 						done();
 					}, {
 						headers: {
@@ -209,6 +210,7 @@ describe('/user', function() {
 
 			//kikurageの作成
 			util.post('/user/kikurage', {
+				name: 'kikurage_name',
 				password: 'kikurage_password'
 			}, function(err, res, body) {
 
@@ -220,7 +222,7 @@ describe('/user', function() {
 
 					//unknownの削除(トークンなし = 未認証)
 					util.delete('/user/kikurage', function(err, res, body) {
-						util.assertIsNG(body, APIError.permissionDenied());
+						util.assertIsNG(body, APIError.mustAuthorized());
 						done();
 					});
 				});

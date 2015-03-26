@@ -10,10 +10,11 @@ var log = require('../util/log.js'),
 		router: require('./auth.js')
 	};
 
+
 User.router.find = function(req, res, next) {
 	var userId = req.params.userId;
 	if (!userId) {
-		return res.ng(400, APIError.invalidParameter(['userId']));
+		return res.ng(APIError.invalidParameter(['userId']));
 	}
 
 	User.model.findOne({
@@ -22,7 +23,7 @@ User.router.find = function(req, res, next) {
 	}, function(err, user) {
 		if (err) {
 			log(err);
-			return res.ng(500, APIError.unknown());
+			return res.ng(APIError.unknown());
 		}
 
 		req.user = user || null;
@@ -31,7 +32,7 @@ User.router.find = function(req, res, next) {
 };
 
 User.router.findMust = [User.router.find, function(req, res, next) {
-	if (!req.user) return res.ng(404, APIError.notFound(['user']));
+	if (!req.user) return res.ng(APIError.notFound(['user']));
 
 	next();
 }];
@@ -45,11 +46,11 @@ User.router.isEditableMust = [
 	User.router.isEditable,
 	function(req, res, next) {
 		if (!req.user) {
-			return res.ng(404, APIError.notFound(['user']));
+			return res.ng(APIError.notFound(['user']));
 		}
 
 		if (!req.isEditable) {
-			return res.ng(403, APIError.permissionDenied());
+			return res.ng(APIError.permissionDenied());
 		}
 
 		next();
@@ -66,7 +67,7 @@ User.router.post('/:userId',
 	User.router.find,
 	function(req, res, next) {
 		if (req.user) {
-			return res.ng(409, APIError.alreadyCreated(['userId'])); //@TODO エラー番号
+			return res.ng(APIError.alreadyCreated(['userId'])); //@TODO エラー番号
 		}
 
 		var errorDetail = [],
@@ -77,7 +78,7 @@ User.router.post('/:userId',
 		if (!name) errorDetail.push('name');
 		if (!password) errorDetail.push('password');
 		if (errorDetail.length !== 0) {
-			return res.ng(400, APIError.invalidParameter(errorDetail));
+			return res.ng(APIError.invalidParameter(errorDetail));
 		}
 
 		new User.model({
@@ -88,7 +89,7 @@ User.router.post('/:userId',
 			.save(function(err, createdUser) {
 				if (err) {
 					log(err);
-					return res.ng(500, APIError.unknown());
+					return res.ng(APIError.unknown());
 				}
 
 				return res.ok(User.model.toObject(createdUser));
@@ -110,7 +111,7 @@ User.router.patch('/:userId',
 		User.model.findByIdAndUpdate(req.user._id, updateValue, function(err, updatedUser) {
 			if (err) {
 				log(err);
-				return res.ng(500, APIError.unknown());
+				return res.ng(APIError.unknown());
 			}
 
 			return res.ok(User.model.toObject(updatedUser));
@@ -128,13 +129,13 @@ User.router.delete('/:userId',
 		}, function(err) {
 			if (err) {
 				log(err);
-				return res.ng(500, APIError.unknown());
+				return res.ng(APIError.unknown());
 			}
 
 			Auth.model.findByIdAndRemove(req.auth._id, function(err) {
 				if (err) {
 					log(err);
-					return res.ng(500, APIError.unknown());
+					return res.ng(APIError.unknown());
 				}
 
 				return res.ok();

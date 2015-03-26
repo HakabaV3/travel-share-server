@@ -115,7 +115,7 @@ describe('/travel', function() {
 			util.post('/travel', {
 				name: 'post1_name'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.permissionDenied());
+				util.assertIsNG(body, APIError.mustAuthorized());
 				done();
 			});
 		});
@@ -181,7 +181,7 @@ describe('/travel', function() {
 			util.patch('/travel/' + travel.id, {
 				name: 'travel1_name_edited2'
 			}, function(err, res, body) {
-				util.assertIsNG(body, APIError.permissionDenied());
+				util.assertIsNG(body, APIError.mustAuthorized());
 				done();
 			});
 		});
