@@ -3,78 +3,22 @@ var log = require('../util/log.js'),
 	APIError = require('../model/apierror.js'),
 	User = {
 		model: require('../model/user.js'),
-		router: express.Router()
+		middleware: require('../middleware/user.js')
 	},
 	Auth = {
 		model: require('../model/auth.js'),
-		router: require('./auth.js')
-	};
+		middleware: require('../middleware/auth.js')
+	},
+	router = express.Router();
 
-User.router.render = function(req, res, next) {
-	User.model.toObject(req.user, function(err, user) {
-		if (err) {
-			log(err);
-			return res.ng(APIError.unknown());
-		}
+router.get('/:userId',
+	User.middleware.findMust,
+	User.middleware.render);
 
-		return res.ok(user);
-	});
-};
-
-User.router.find = function(req, res, next) {
-	var userId = req.params.userId;
-	if (!userId) {
-		return res.ng(APIError.invalidParameter(['userId']));
-	}
-
-	User.model.findOne({
-		userId: userId,
-		deleted: false
-	}, function(err, user) {
-		if (err) {
-			log(err);
-			return res.ng(APIError.unknown());
-		}
-
-		req.user = user || null;
-		next();
-	});
-};
-
-User.router.findMust = [User.router.find, function(req, res, next) {
-	if (!req.user) return res.ng(APIError.notFound(['user']));
-
-	next();
-}];
-
-User.router.isEditable = function(req, res, next) {
-	req.isEditable = req.user && req.auth && req.auth.userId === req.user.userId;
-	next();
-};
-
-User.router.isEditableMust = [
-	User.router.isEditable,
+router.post('/:userId',
+	User.middleware.find,
 	function(req, res, next) {
-		if (!req.user) {
-			return res.ng(APIError.notFound(['user']));
-		}
-
-		if (!req.isEditable) {
-			return res.ng(APIError.permissionDenied());
-		}
-
-		next();
-	}
-]
-
-User.router.get('/:userId',
-	User.router.findMust,
-	User.router.render);
-
-User.router.post('/:userId',
-	User.router.find,
-	function(req, res, next) {
-		if (req.user) {
+		if (req.session.user) {
 			return res.ng(APIError.alreadyCreated(['userId'])); //@TODO エラー番号
 		}
 
@@ -100,17 +44,17 @@ User.router.post('/:userId',
 					return res.ng(APIError.unknown());
 				}
 
-				req.user = createdUser;
+				req.session.user = createdUser;
 
 				next();
 			});
 	},
-	User.router.render);
+	User.middleware.render);
 
-User.router.patch('/:userId',
-	Auth.router.findMust,
-	User.router.findMust,
-	User.router.isEditableMust,
+router.patch('/:userId',
+	Auth.middleware.findMust,
+	User.middleware.findMust,
+	User.middleware.isEditableMust,
 	function(req, res, next) {
 		var name = req.body.name,
 			updateValue = {
@@ -119,25 +63,25 @@ User.router.patch('/:userId',
 
 		if (name) updateValue.name = name;
 
-		User.model.findByIdAndUpdate(req.user._id, updateValue, function(err, updatedUser) {
+		User.model.findByIdAndUpdate(req.session.user._id, updateValue, function(err, updatedUser) {
 			if (err) {
 				log(err);
 				return res.ng(APIError.unknown());
 			}
 
-			req.user = updatedUser;
+			req.session.user = updatedUser;
 			next();
 		});
 	},
-	User.router.render);
+	User.middleware.render);
 
-User.router.delete('/:userId',
-	Auth.router.findMust,
-	User.router.findMust,
-	User.router.isEditableMust,
+router.delete('/:userId',
+	Auth.middleware.findMust,
+	User.middleware.findMust,
+	User.middleware.isEditableMust,
 	function(req, res, next) {
 		User.model.findOneAndUpdate({
-			userId: req.auth.userId
+			userId: req.session.auth.userId
 		}, {
 			updated: new Date(),
 			deleted: true
@@ -147,7 +91,7 @@ User.router.delete('/:userId',
 				return res.ng(APIError.unknown());
 			}
 
-			Auth.model.findByIdAndRemove(req.auth._id, function(err) {
+			Auth.model.findByIdAndRemove(req.session.auth._id, function(err) {
 				if (err) {
 					log(err);
 					return res.ng(APIError.unknown());
@@ -158,4 +102,4 @@ User.router.delete('/:userId',
 		});
 	});
 
-module.exports = User.router;
+module.exports = router;

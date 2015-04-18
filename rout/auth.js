@@ -6,60 +6,21 @@ var log = require('../util/log.js'),
 	},
 	Auth = {
 		model: require('../model/auth.js'),
-		router: express.Router()
+		middleware: require('../middleware/auth.js')
 	},
+	router = express.Router(),
 	crypto = require('crypto');
 
-Auth.router.render = function(req, res, next) {
-	Auth.model.toObject(req.auth, function(err, auth) {
-		if (err) {
-			log(err);
-			return res.ng(APIError.unknown());
-		}
-
-		return res.ok(auth);
-	});
-};
-
-Auth.router.find = function(req, res, next) {
-	var token = req.get('X-Token');
-	if (!token) {
-		req.auth = null;
-		return next();
-	}
-
-	Auth.model.findOne({
-		token: token
-	}, function(err, auth) {
-		if (err) {
-			log(err);
-			return res.ng(APIError.unknown());
-		}
-
-		req.auth = auth || null;
-		next();
-	});
-};
-
-Auth.router.findMust = [
-	Auth.router.find,
+router.get('/',
+	Auth.middleware.find,
 	function(req, res, next) {
-		if (!req.auth) return res.ng(APIError.mustAuthorized());
-
-		next();
-	}
-];
-
-Auth.router.get('/',
-	Auth.router.find,
-	function(req, res, next) {
-		if (!req.auth) return res.ng(APIError.notFound(['auth']));
+		if (!req.session.auth) return res.ng(APIError.notFound(['auth']));
 
 		next();
 	},
-	Auth.router.render);
+	Auth.middleware.render);
 
-Auth.router.post('/:userId',
+router.post('/:userId',
 	function(req, res, next) {
 		var userId = req.params.userId,
 			password = req.body.password;
@@ -97,14 +58,14 @@ Auth.router.post('/:userId',
 						return res.ng(APIError.unknown());
 					}
 
-					req.auth = createdAuth;
+					req.session.auth = createdAuth;
 					next();
 				});
 		});
 	},
-	Auth.router.render);
+	Auth.middleware.render);
 
-Auth.router.delete('/', function(req, res, next) {
+router.delete('/', function(req, res, next) {
 	var token = req.get('X-Token');
 	if (!token) return res.ok();
 
@@ -120,4 +81,4 @@ Auth.router.delete('/', function(req, res, next) {
 	});
 });
 
-module.exports = Auth.router;
+module.exports = router;

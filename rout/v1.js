@@ -16,6 +16,7 @@ express.response.ng = function(result) {
 };
 
 router.use(function(req, res, next) {
+	req.session = {};
 	res.set({
 		'Content-Type': 'application/json',
 		'Access-Control-Allow-Origin': '*',

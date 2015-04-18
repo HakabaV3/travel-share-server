@@ -179,6 +179,28 @@ describe('/travel', function() {
 		});
 	});
 
+	describe('GET /travel', function() {
+		it('通常', function(done) {
+			var kikurage_token;
+
+			util.post('/auth/kikurage', {
+				password: 'kikurage_password'
+			}, function(err, res, body) {
+				util.assertIsAuth(body, 'kikurage', 'kikurage_name');
+				kikurage_token = body.result.token;
+
+				util.get('/travel', function(err, res, body) {
+					util.assertIsTravels(body);
+					done();
+				}, {
+					headers: {
+						'X-Token': kikurage_token
+					}
+				});
+			});
+		});
+	});
+
 	describe('POST /travel', function() {
 		it('通常', function(done) {
 			var kikurage_token,
