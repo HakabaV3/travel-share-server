@@ -84,6 +84,13 @@ exports.assertIsTravel = function(object, name) {
 	exports.assertIsTravelObject(object.result, name)
 };
 
+exports.assertIsTravels = function(object, name) {
+	exports.assertIsOK(object);
+	object.result.forEach(function(travelObj) {
+		exports.assertIsTravelObject(travelObj);
+	});
+};
+
 exports.assertIsAuth = function(object, userId, name) {
 	exports.assertIsOK(object);
 	exports.assertIsAuthObject(object.result, userId, name)

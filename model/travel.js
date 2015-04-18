@@ -14,6 +14,19 @@ model.toObject = function(travel, callback) {
 	});
 };
 
+model.toObjectAll = function(travels, callback) {
+	return callback(null, travels.map(function(travel) {
+		return {
+			id: travel._id.toString(),
+			created: travel.created,
+			updated: travel.updated,
+			name: travel.name,
+			members: travel.members,
+			places: travel.places
+		};
+	}));
+};
+
 model.toPublicObject = function(travel, callback) {
 	return model.toObject(travel, function(err, travel) {
 		if (err) callback(err, null);
